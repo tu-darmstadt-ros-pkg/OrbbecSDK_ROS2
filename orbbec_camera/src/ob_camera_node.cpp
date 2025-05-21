@@ -1381,7 +1381,12 @@ void OBCameraNode::setupPublishers() {
     if (use_intra_process_) {
       image_qos_profile = rmw_qos_profile_default;
     }
-    if (use_intra_process_) {
+    if (stream_index == COLOR && !decode_color_frames_) {
+      compressed_image_publisher_ = node_->create_publisher<sensor_msgs::msg::CompressedImage>(
+          topic + "/compressed",
+          rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(image_qos_profile),
+                      image_qos_profile));
+    } else if (use_intra_process_) {
       image_publishers_[stream_index] =
           std::make_shared<image_rcl_publisher>(*node_, topic, image_qos_profile);
     } else {
@@ -1871,7 +1876,11 @@ void OBCameraNode::onNewColorFrameCallback() {
     }
 
     std::shared_ptr<ob::FrameSet> frameSet = color_frame_queue_.front();
-    is_color_frame_decoded_ = decodeColorFrameToBuffer(frameSet->colorFrame(), rgb_buffer_);
+    if (!decode_color_frames_) {
+      is_color_frame_decoded_ = false;
+    } else {
+      is_color_frame_decoded_ = decodeColorFrameToBuffer(frameSet->colorFrame(), rgb_buffer_);
+    }
     publishPointCloud(frameSet);
     onNewFrameCallback(frameSet->colorFrame(), COLOR);
     color_frame_queue_.pop();
@@ -2005,8 +2014,14 @@ void OBCameraNode::onNewFrameCallback(const std::shared_ptr<ob::Frame> &frame,
   if (frame == nullptr) {
     return;
   }
-  CHECK_NOTNULL(image_publishers_[stream_index]);
-  bool has_subscriber = image_publishers_[stream_index]->get_subscription_count() > 0;
+  bool has_subscriber = false;
+  if (decode_color_frames_) {
+    CHECK_NOTNULL(image_publishers_[stream_index]);
+    has_subscriber |= image_publishers_[stream_index]->get_subscription_count() > 0;
+  } else {
+    CHECK_NOTNULL(compressed_image_publisher_);
+    has_subscriber |= compressed_image_publisher_->get_subscription_count() > 0;
+  }
   has_subscriber =
       has_subscriber || camera_info_publishers_[stream_index]->get_subscription_count() > 0;
   has_subscriber =
@@ -2139,19 +2154,35 @@ void OBCameraNode::onNewFrameCallback(const std::shared_ptr<ob::Frame> &frame,
   if (isGemini335PID(pid)) {
     publishMetadata(frame, stream_index, camera_info.header);
   }
-  CHECK_NOTNULL(image_publishers_[stream_index]);
-  if (image_publishers_[stream_index]->get_subscription_count() == 0) {
-    return;
+  if (decode_color_frames_) {
+    CHECK_NOTNULL(image_publishers_[stream_index]);
+    if (image_publishers_[stream_index]->get_subscription_count() == 0) {
+      return;
+    }
+  } else {
+    CHECK_NOTNULL(compressed_image_publisher_);
+    if (compressed_image_publisher_->get_subscription_count() == 0) {
+      return;
+    }
   }
   auto &image = images_[stream_index];
   if (image.empty() || image.cols != width || image.rows != height) {
     image.create(height, width, image_format_[stream_index]);
   }
-  if (frame->type() == OB_FRAME_COLOR && !is_color_frame_decoded_) {
-    RCLCPP_ERROR(logger_, "color frame is not decoded");
-    return;
-  }
   if (frame->type() == OB_FRAME_COLOR) {
+    if (!is_color_frame_decoded_ && decode_color_frames_) {
+      RCLCPP_ERROR(logger_, "color frame is not decoded");
+      return;
+    } else if (!decode_color_frames_) {
+      auto compressed_image_msg = std::make_unique<sensor_msgs::msg::CompressedImage>();
+      compressed_image_msg->header.frame_id = frame_id;
+      compressed_image_msg->header.stamp = timestamp;
+      compressed_image_msg->format = "rgb8; jpeg compressed bgr8";
+      compressed_image_msg->data.resize(video_frame->dataSize());
+      memcpy(compressed_image_msg->data.data(), video_frame->data(), video_frame->dataSize());
+      compressed_image_publisher_->publish(std::move(compressed_image_msg));
+      return;
+    }
     memcpy(image.data, rgb_buffer_, video_frame->width() * video_frame->height() * 3);
   } else {
     memcpy(image.data, video_frame->data(), video_frame->dataSize());

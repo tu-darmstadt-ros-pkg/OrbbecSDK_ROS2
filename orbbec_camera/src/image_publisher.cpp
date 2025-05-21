@@ -31,6 +31,21 @@ size_t image_rcl_publisher::get_subscription_count() const {
   return image_publisher_impl->get_subscription_count();
 }
 
+// --- image_rcl_compressed_publisher implementation ---
+image_rcl_compressed_publisher::image_rcl_compressed_publisher(rclcpp::Node& node, const std::string& topic_name,
+                                         const rmw_qos_profile_t& qos) {
+  image_publisher_impl = node.create_publisher<sensor_msgs::msg::CompressedImage>(
+      topic_name, rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(qos), qos));
+}
+
+void image_rcl_compressed_publisher::publish(sensor_msgs::msg::CompressedImage::UniquePtr image_ptr) {
+  image_publisher_impl->publish(std::move(image_ptr));
+}
+
+size_t image_rcl_compressed_publisher::get_subscription_count() const {
+  return image_publisher_impl->get_subscription_count();
+}
+
 // --- image_transport_publisher implementation ---
 image_transport_publisher::image_transport_publisher(rclcpp::Node& node,
                                                      const std::string& topic_name,
