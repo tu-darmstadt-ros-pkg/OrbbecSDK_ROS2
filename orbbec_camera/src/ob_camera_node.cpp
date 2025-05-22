@@ -793,7 +793,7 @@ void OBCameraNode::setupProfiles() {
                               << ", height: " << selected_profile->height()
                               << ", fps: " << selected_profile->fps() << ", "
                               << "Format: " << magic_enum::enum_name(selected_profile->format()));
-      if (!decode_color_frames_) {
+      if (elem == COLOR && !decode_color_frames_) {
         if (selected_profile->format() != OBFormat::OB_FORMAT_MJPG) {
           RCLCPP_WARN_STREAM(logger_, " stream " << stream_name_[elem] << " is not an MJPG stream. Not decoding frames "
                                                                           "is only supported for MJPG.");
