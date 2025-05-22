@@ -35,11 +35,13 @@ namespace orbbec_camera {
 using namespace std::chrono_literals;
 
 OBCameraNode::OBCameraNode(rclcpp::Node *node, std::shared_ptr<ob::Device> device,
-                           std::shared_ptr<Parameters> parameters, bool use_intra_process)
+                           std::shared_ptr<Parameters> parameters, bool use_intra_process,
+                           bool decode_color_frames)
     : node_(node),
       device_(std::move(device)),
       parameters_(std::move(parameters)),
       logger_(node->get_logger()),
+      decode_color_frames_(decode_color_frames),
       use_intra_process_(use_intra_process) {
   RCLCPP_INFO_STREAM(logger_,
                      "OBCameraNode: use_intra_process: " << (use_intra_process ? "ON" : "OFF"));
@@ -791,6 +793,16 @@ void OBCameraNode::setupProfiles() {
                               << ", height: " << selected_profile->height()
                               << ", fps: " << selected_profile->fps() << ", "
                               << "Format: " << magic_enum::enum_name(selected_profile->format()));
+      if (!decode_color_frames_) {
+        if (selected_profile->format() != OBFormat::OB_FORMAT_MJPG) {
+          RCLCPP_WARN_STREAM(logger_, " stream " << stream_name_[elem] << " is not an MJPG stream. Not decoding frames "
+                                                                          "is only supported for MJPG.");
+          decode_color_frames_ = true;
+        } else {
+          RCLCPP_INFO_STREAM(logger_, " stream " << stream_name_[elem] << " is not decoding color frames and publishing"
+                                                                          "the compressed images directly.");
+        }
+      }
     }
   }
   // IMU
@@ -1881,8 +1893,8 @@ void OBCameraNode::onNewColorFrameCallback() {
     } else {
       is_color_frame_decoded_ = decodeColorFrameToBuffer(frameSet->colorFrame(), rgb_buffer_);
     }
-    publishPointCloud(frameSet);
     onNewFrameCallback(frameSet->colorFrame(), COLOR);
+    publishPointCloud(frameSet);
     color_frame_queue_.pop();
   }
 
