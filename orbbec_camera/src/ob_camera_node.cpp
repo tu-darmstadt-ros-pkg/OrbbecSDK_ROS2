@@ -800,7 +800,7 @@ void OBCameraNode::setupProfiles() {
           decode_color_frames_ = true;
         } else {
           RCLCPP_INFO_STREAM(logger_, " stream " << stream_name_[elem] << " is not decoding color frames and publishing"
-                                                                          "the compressed images directly.");
+                                                                          " the compressed images directly.");
         }
       }
     }
@@ -2027,7 +2027,7 @@ void OBCameraNode::onNewFrameCallback(const std::shared_ptr<ob::Frame> &frame,
     return;
   }
   bool has_subscriber = false;
-  if (decode_color_frames_) {
+  if (stream_index != COLOR || decode_color_frames_) {
     CHECK_NOTNULL(image_publishers_[stream_index]);
     has_subscriber |= image_publishers_[stream_index]->get_subscription_count() > 0;
   } else {
@@ -2166,7 +2166,7 @@ void OBCameraNode::onNewFrameCallback(const std::shared_ptr<ob::Frame> &frame,
   if (isGemini335PID(pid)) {
     publishMetadata(frame, stream_index, camera_info.header);
   }
-  if (decode_color_frames_) {
+  if (stream_index != COLOR || decode_color_frames_) {
     CHECK_NOTNULL(image_publishers_[stream_index]);
     if (image_publishers_[stream_index]->get_subscription_count() == 0) {
       return;
