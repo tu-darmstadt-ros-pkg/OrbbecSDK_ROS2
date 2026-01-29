@@ -109,5 +109,6 @@ class OBCameraNodeDriver : public rclcpp::Node {
   static backward::SignalHandling sh;  // for stack trace
   bool enable_hardware_reset_ = false;
   bool hardware_reset_done_ = false;
+  bool decode_color_frames_ = true;
 };
 }  // namespace orbbec_camera

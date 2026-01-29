@@ -16,8 +16,10 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
 
 #include <image_transport/image_transport.hpp>
+
 namespace orbbec_camera {
 class image_publisher {
  public:
@@ -27,15 +29,26 @@ class image_publisher {
 };  // namespace image_publisher
 
 // Native RCL implementation of an image publisher (needed for intra-process communication)
-class image_rcl_publisher : public image_publisher {
- public:
-  image_rcl_publisher(rclcpp::Node& node, const std::string& topic_name,
-                      const rmw_qos_profile_t& qos);
-  void publish(sensor_msgs::msg::Image::UniquePtr image_ptr) override;
-  size_t get_subscription_count() const override;
+  class image_rcl_publisher : public image_publisher {
+  public:
+    image_rcl_publisher(rclcpp::Node& node, const std::string& topic_name,
+                        const rmw_qos_profile_t& qos);
+    void publish(sensor_msgs::msg::Image::UniquePtr image_ptr) override;
+    size_t get_subscription_count() const override;
 
- private:
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_impl;
+  private:
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_publisher_impl;
+};
+
+class image_rcl_compressed_publisher {
+public:
+  image_rcl_compressed_publisher(rclcpp::Node& node, const std::string& topic_name,
+                      const rmw_qos_profile_t& qos);
+  void publish(sensor_msgs::msg::CompressedImage::UniquePtr image_ptr);
+  size_t get_subscription_count() const;
+
+private:
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr image_publisher_impl;
 };
 
 // image_transport implementation of an image publisher (adds a compressed image topic)

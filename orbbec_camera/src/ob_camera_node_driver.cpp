@@ -155,6 +155,7 @@ void OBCameraNodeDriver::init() {
   net_device_ip_ = declare_parameter<std::string>("net_device_ip", "");
   net_device_port_ = static_cast<int>(declare_parameter<int>("net_device_port", 0));
   enumerate_net_device_ = declare_parameter<bool>("enumerate_net_device", false);
+  decode_color_frames_ = declare_parameter<bool>("decode_color_frames", true);
   ctx_->enableNetDeviceEnumeration(enumerate_net_device_);
   ctx_->setDeviceChangedCallback([this](const std::shared_ptr<ob::DeviceList> &removed_list,
                                         const std::shared_ptr<ob::DeviceList> &added_list) {
@@ -405,7 +406,8 @@ void OBCameraNodeDriver::initializeDevice(const std::shared_ptr<ob::Device> &dev
   while (retry_count < max_retries && !initialized) {
     try {
       ob_camera_node_ = std::make_unique<OBCameraNode>(this, device_, parameters_,
-                                                       node_options_.use_intra_process_comms());
+                                                       node_options_.use_intra_process_comms(),
+                                                       decode_color_frames_);
       initialized = true;
     } catch (const ob::Error &e) {
       RCLCPP_ERROR_STREAM(logger_, "Failed to initialize device (Attempt "

@@ -132,7 +132,8 @@ const std::map<OBStreamType, OBFrameType> STREAM_TYPE_TO_FRAME_TYPE = {
 class OBCameraNode {
  public:
   OBCameraNode(rclcpp::Node* node, std::shared_ptr<ob::Device> device,
-               std::shared_ptr<Parameters> parameters, bool use_intra_process = false);
+               std::shared_ptr<Parameters> parameters, bool use_intra_process = false,
+               bool decode_color_frames = true);
 
   template <class T>
   void setAndGetNodeParameter(
@@ -400,6 +401,7 @@ class OBCameraNode {
   std::map<stream_index_pair, bool> enable_stream_;
   std::map<stream_index_pair, bool> flip_stream_;
   std::map<stream_index_pair, std::string> stream_name_;
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_image_publisher_;
   std::map<stream_index_pair, std::shared_ptr<image_publisher>> image_publishers_;
   std::map<stream_index_pair, rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr>
       camera_info_publishers_;
@@ -521,6 +523,7 @@ class OBCameraNode {
   // mjpeg decoder
   std::shared_ptr<JPEGDecoder> jpeg_decoder_ = nullptr;
   uint8_t* rgb_buffer_ = nullptr;
+  bool decode_color_frames_ = true;
   bool is_color_frame_decoded_ = false;
   std::mutex device_lock_;
   // For color
