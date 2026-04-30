@@ -167,6 +167,14 @@ void OBCameraNodeDriver::init() {
   CHECK_NOTNULL(check_connect_timer_);
   query_thread_ = std::make_shared<std::thread>([this]() { queryDevice(); });
   reset_device_thread_ = std::make_shared<std::thread>([this]() { resetDevice(); });
+
+  // declare image transport default plugins
+  declare_parameter<std::vector<std::string>>("depth.image_raw.enable_pub_plugins", 
+    {"image_transport/compressedDepth", "image_transport/raw"});
+  declare_parameter<std::vector<std::string>>("color.image_raw.enable_pub_plugins", 
+    {"image_transport/compressed", "image_transport/raw", "image_transport/theora"});
+  declare_parameter<std::vector<std::string>>("ir.image_raw.enable_pub_plugins", 
+    {"image_transport/compressed", "image_transport/raw"});
 }
 
 void OBCameraNodeDriver::onDeviceConnected(const std::shared_ptr<ob::DeviceList> &device_list) {
