@@ -175,9 +175,6 @@ void OBCameraNodeDriver::init() {
     {"image_transport/compressed", "image_transport/raw", "image_transport/theora"});
   declare_parameter<std::vector<std::string>>("ir.image_raw.enable_pub_plugins", 
     {"image_transport/compressed", "image_transport/raw"});
-  
-
-
 }
 
 void OBCameraNodeDriver::onDeviceConnected(const std::shared_ptr<ob::DeviceList> &device_list) {
