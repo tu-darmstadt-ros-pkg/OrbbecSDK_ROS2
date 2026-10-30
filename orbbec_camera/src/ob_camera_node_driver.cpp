@@ -19,7 +19,7 @@
 #include <fcntl.h>
 #include <semaphore.h>
 #include <sys/shm.h>
-#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <ament_index_cpp/get_package_share_path.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <csignal>
 #include <sys/mman.h>
@@ -82,7 +82,7 @@ backward::SignalHandling OBCameraNodeDriver::sh;
 OBCameraNodeDriver::OBCameraNodeDriver(const rclcpp::NodeOptions &node_options)
     : Node("orbbec_camera_node", "/", node_options),
       node_options_(node_options),
-      config_path_(ament_index_cpp::get_package_share_directory("orbbec_camera") +
+      config_path_(ament_index_cpp::get_package_share_path("orbbec_camera").string() +
                    "/config/OrbbecSDKConfig_v1.0.xml"),
       ctx_(std::make_unique<ob::Context>(config_path_.c_str())),
       logger_(this->get_logger()) {

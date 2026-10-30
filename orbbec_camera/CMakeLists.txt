@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.13)
 project(orbbec_camera)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -27,6 +27,7 @@ set(dependencies
   camera_info_manager
   image_transport
   image_publisher
+  message_filters
   OpenCV
   orbbec_camera_msgs
   rclcpp
@@ -51,6 +52,44 @@ foreach(dep IN LISTS dependencies)
 endforeach()
 
 find_package(PkgConfig REQUIRED)
+
+# newer message_filters (7.x on Lyrical) only accept rclcpp::QoS in Subscriber; older
+# releases still take rmw_qos_profile_t
+if(DEFINED message_filters_VERSION AND message_filters_VERSION VERSION_GREATER_EQUAL 5.0)
+  add_compile_definitions(ORBBEC_MESSAGE_FILTERS_USES_RCLCPP_QOS)
+endif()
+# image_transport >= 6.4 deprecates create_publisher(rclcpp::Node*, ..., rmw_qos_profile_t)
+if(DEFINED image_transport_VERSION AND image_transport_VERSION VERSION_GREATER_EQUAL 6.4)
+  add_compile_definitions(ORBBEC_IMAGE_TRANSPORT_USES_REQUIRED_INTERFACES)
+endif()
+
+# ament_target_dependencies was removed in Lyrical; link the exported targets instead
+function(orbbec_target_dependencies target)
+  if(COMMAND ament_target_dependencies)
+    ament_target_dependencies(${target} ${ARGN})
+    return()
+  endif()
+
+  set(dependency_targets)
+  foreach(dependency IN LISTS ARGN)
+    if(dependency STREQUAL "ament_cmake")
+      continue()
+    elseif(dependency STREQUAL "rclcpp_components")
+      list(APPEND dependency_targets rclcpp_components::component)
+    elseif(dependency STREQUAL "sensor_msgs")
+      list(APPEND dependency_targets sensor_msgs::sensor_msgs_library ${sensor_msgs_TARGETS})
+    elseif(TARGET "${dependency}::${dependency}")
+      list(APPEND dependency_targets "${dependency}::${dependency}")
+    elseif(DEFINED ${dependency}_TARGETS)
+      list(APPEND dependency_targets ${${dependency}_TARGETS})
+    else()
+      # plain CMake packages (Eigen3, OpenCV, Threads, backward_ros, ...)
+      target_include_directories(${target} PUBLIC ${${dependency}_INCLUDE_DIRS})
+      list(APPEND dependency_targets ${${dependency}_LIBRARIES})
+    endif()
+  endforeach()
+  target_link_libraries(${target} ${dependency_targets})
+endfunction()
 
 
 if(USE_RK_HW_DECODER)
@@ -186,7 +225,7 @@ macro(add_orbbec_executable TARGET SOURCE)
   add_executable(${TARGET} ${SOURCE})
   target_include_directories(${TARGET} PUBLIC ${COMMON_INCLUDE_DIRS})
   target_link_libraries(${TARGET} ${COMMON_LIBRARIES} ${PROJECT_NAME})
-  ament_target_dependencies(${TARGET} ${dependencies})
+  orbbec_target_dependencies(${TARGET} ${dependencies})
 endmacro()
 
 # Define library and nodes
@@ -194,7 +233,7 @@ add_library(${PROJECT_NAME} SHARED
   ${SOURCE_FILES}
 )
 
-ament_target_dependencies(${PROJECT_NAME} ${dependencies})
+orbbec_target_dependencies(${PROJECT_NAME} ${dependencies})
 target_include_directories(${PROJECT_NAME} PUBLIC ${COMMON_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIBRARIES})
 
@@ -214,7 +253,7 @@ add_orbbec_executable(topic_statistics_node tools/topic_statistics.cpp)
 add_library(frame_latency SHARED tools/frame_latency.cpp)
 target_include_directories(frame_latency PUBLIC ${COMMON_INCLUDE_DIRS})
 target_link_libraries(frame_latency ${COMMON_LIBRARIES})
-ament_target_dependencies(frame_latency ${dependencies})
+orbbec_target_dependencies(frame_latency ${dependencies})
 
 rclcpp_components_register_node(frame_latency
         PLUGIN "orbbec_camera::FrameLatencyNode"
